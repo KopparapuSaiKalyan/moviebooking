@@ -1,0 +1,402 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class MovieTicketBookingSystemGUI {
+    private JFrame frame;
+    private JComboBox<String> movieComboBox, theaterComboBox, timingComboBox, dateComboBox;
+    private JPanel seatPanel;
+    private JTextField numTicketsField;
+    private JButton calculateButton;
+    private JButton newBookingButton;
+    private JButton proceedToPaymentButton;
+    private JButton showHistoryButton;
+    private JLabel screenLabel;
+
+    private static final int NUM_ROWS = 10;
+    private static final int NUM_COLUMNS = 5;
+    private List<Seat> selectedSeats = new ArrayList<>();
+    private List<String> transactionHistory = new ArrayList<>();
+    private String customerName;
+    private String phoneNumber;
+
+    private Map<String, Map<String, Map<String, Map<String, Seat[][]>>>> seatsLayouts;
+
+    public MovieTicketBookingSystemGUI() {
+        frame = new JFrame("Movie Ticket Booking System");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(700, 450);
+        frame.getContentPane().setBackground(new Color(39, 60, 117)); // Set background color
+
+        showLoginDialog();
+
+        movieComboBox = new JComboBox<>(new String[]{"KGF", "SALAAR", "PUSHPA"});
+        theaterComboBox = new JComboBox<>(new String[]{"PVR", "INOX", "AMB"});
+        dateComboBox = new JComboBox<>(new String[]{"2023-01-15", "2023-01-16", "2023-01-17"});
+        timingComboBox = new JComboBox<>(new String[]{"10:00 AM", "2:00 PM", "6:00 PM"});
+        numTicketsField = new JTextField(10);
+        calculateButton = new JButton("Calculate Total Cost");
+        newBookingButton = new JButton("New Booking");
+        proceedToPaymentButton = new JButton("Proceed to Payment");
+        showHistoryButton = new JButton("Show History");
+        screenLabel = new JLabel("Screen");
+        screenLabel.setForeground(Color.WHITE);
+
+        seatPanel = new JPanel(new GridLayout(NUM_ROWS, NUM_COLUMNS));
+        seatPanel.setBackground(new Color(255, 255, 255));
+
+        initializeSeats();
+
+        applyStylesToButton(calculateButton);
+        applyStylesToButton(newBookingButton);
+        applyStylesToButton(proceedToPaymentButton);
+        applyStylesToButton(showHistoryButton);
+
+        calculateButton.addActionListener(e -> calculateTotalCost());
+        newBookingButton.addActionListener(e -> newBooking());
+        proceedToPaymentButton.addActionListener(e -> proceedToPayment());
+        showHistoryButton.addActionListener(e -> showTransactionHistory());
+
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(39, 60, 117));
+        panel.add(createStyledLabel("Select Movie:"));
+        panel.add(movieComboBox);
+        panel.add(createStyledLabel("Select Theater:"));
+        panel.add(theaterComboBox);
+        panel.add(createStyledLabel("Select Date:"));
+        panel.add(dateComboBox);
+        panel.add(createStyledLabel("Select Timing:"));
+        panel.add(timingComboBox);
+        panel.add(createStyledLabel("Number of Tickets:"));
+        panel.add(numTicketsField);
+        panel.add(calculateButton);
+        panel.add(newBookingButton);
+        panel.add(proceedToPaymentButton);
+        panel.add(showHistoryButton);
+
+        JPanel screenPanel = new JPanel();
+        screenPanel.add(screenLabel);
+
+        frame.add(panel);
+        frame.add(screenPanel);
+        frame.add(seatPanel);
+        frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));
+        frame.setVisible(true);
+    }
+
+    private void applyStylesToButton(JButton button) {
+        button.setBackground(new Color(255, 69, 0));
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+    }
+
+    private JLabel createStyledLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(Color.WHITE);
+        return label;
+    }
+
+    private void showLoginDialog() {
+        JTextField usernameField = new JTextField();
+        JPasswordField passwordField = new JPasswordField();
+        Object[] message = {
+                "Username:", usernameField,
+                "Password:", passwordField
+        };
+
+        int option = JOptionPane.showConfirmDialog(frame, message, "Login", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            String username = usernameField.getText();
+            String password = new String(passwordField.getPassword());
+
+            if (!"username1".equals(username) || !"password1".equals(password)) {
+                JOptionPane.showMessageDialog(frame, "Invalid username or password. Exiting.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                System.exit(0);
+            } else {
+                showCustomerInfoPage();
+            }
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private void showCustomerInfoPage() {
+        JTextField nameField = new JTextField();
+        JTextField phoneField = new JTextField();
+        Object[] message = {
+                "Customer Name:", nameField,
+                "Phone Number:", phoneField
+        };
+
+        int option = JOptionPane.showConfirmDialog(frame, message, "Enter Customer Details", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            customerName = nameField.getText();
+            phoneNumber = phoneField.getText();
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private void initializeSeats() {
+        seatsLayouts = new HashMap<>();
+        seatsLayouts.put("KGF", createSeatsForMovie("KGF"));
+        seatsLayouts.put("SALAAR", createSeatsForMovie("SALAAR"));
+        seatsLayouts.put("PUSHPA", createSeatsForMovie("PUSHPA"));
+    }
+
+    private Map<String, Map<String, Map<String, Seat[][]>>> createSeatsForMovie(String movie) {
+        Map<String, Map<String, Map<String, Seat[][]>>> theaterLayouts = new HashMap<>();
+
+        theaterLayouts.put("PVR", createSeatsForTheater(movie, "PVR"));
+        theaterLayouts.put("INOX", createSeatsForTheater(movie, "INOX"));
+        theaterLayouts.put("AMB", createSeatsForTheater(movie, "AMB"));
+
+        return theaterLayouts;
+    }
+
+    private Map<String, Map<String, Seat[][]>> createSeatsForTheater(String movie, String theater) {
+        Map<String, Map<String, Seat[][]>> dateLayouts = new HashMap<>();
+
+        String[] dates = new String[]{"2023-01-15", "2023-01-16", "2023-01-17"};
+        String[] timings = new String[]{"10:00 AM", "2:00 PM", "6:00 PM"};
+
+        for (String date : dates) {
+            Map<String, Seat[][]> timingLayouts = new HashMap<>();
+            for (String timing : timings) {
+                timingLayouts.put(timing, createSeatsLayout(movie, theater, date, timing));
+            }
+            dateLayouts.put(date, timingLayouts);
+        }
+
+        return dateLayouts;
+    }
+
+    private Seat[][] createSeatsLayout(String movie, String theater, String date, String timing) {
+        Seat[][] seats = new Seat[NUM_ROWS][NUM_COLUMNS];
+
+        for (int row = 0; row < NUM_ROWS; row++) {
+            for (int col = 0; col < NUM_COLUMNS; col++) {
+                int seatNumber = row * NUM_COLUMNS + col + 1;
+                int seatCost;
+                String seatType;
+
+                if (row < 2) {
+                    seatCost = 10;
+                    seatType = "Balcony";
+                } else if (row < 4) {
+                    seatCost = 20;
+                    seatType = "Sofa";
+                } else {
+                    seatCost = 30;
+                    seatType = "Recliners";
+                }
+
+                seats[row][col] = new Seat(seatNumber, seatCost, seatType);
+                JButton button = new JButton(String.valueOf(seats[row][col].getNumber()));
+                button.setBackground(Color.GREEN);
+                button.addActionListener(new SeatSelectionListener(row, col, button, seats));
+                seats[row][col].setButton(button);
+            }
+        }
+
+        return seats;
+    }
+
+    private class Seat {
+        private int number;
+        private int cost;
+        private String type;
+        private boolean isAvailable;
+        private JButton button;
+
+        public Seat(int number, int cost, String type) {
+            this.number = number;
+            this.cost = cost;
+            this.type = type;
+            this.isAvailable = true;
+        }
+
+        public int getNumber() {
+            return number;
+        }
+
+        public int getCost() {
+            return cost;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public boolean isAvailable() {
+            return isAvailable;
+        }
+
+        public void setAvailable(boolean available) {
+            isAvailable = available;
+        }
+
+        public void setButton(JButton button) {
+            this.button = button;
+        }
+
+        public JButton getButton() {
+            return button;
+        }
+    }
+
+    private class SeatSelectionListener implements ActionListener {
+        private int row;
+        private int col;
+        private Seat[][] seats;
+
+        public SeatSelectionListener(int row, int col, JButton button, Seat[][] seats) {
+            this.row = row;
+            this.col = col;
+            this.seats = seats;
+            this.seats[row][col].setButton(button);
+        }
+
+        public void actionPerformed(ActionEvent e) {
+            Seat seat = seats[row][col];
+            if (seat.isAvailable()) {
+                int seatNumber = seat.getNumber();
+                numTicketsField.setText(numTicketsField.getText() + " " + seatNumber);
+                selectedSeats.add(seat);
+                seat.setAvailable(false);
+                seat.getButton().setBackground(Color.RED);
+                seat.getButton().setEnabled(false);
+            } else {
+                JOptionPane.showMessageDialog(frame, "Seat already selected.", "Seat Selection", JOptionPane.WARNING_MESSAGE);
+            }
+        }
+    }
+
+    private void calculateTotalCost() {
+        int numTickets = selectedSeats.size();
+        String selectedSeatsText = "";
+        int totalCost = 0;
+
+        for (Seat seat : selectedSeats) {
+            selectedSeatsText += seat.getNumber() + "(" + seat.getType() + ")" + " ";
+            totalCost += seat.getCost();
+        }
+
+        JOptionPane.showMessageDialog(frame,
+                "Selected Seats: " + selectedSeatsText + "\n" +
+                        "Number of Tickets: " + numTickets + "\n" +
+                        "Total Cost: $" + totalCost,
+                "Booking Summary",
+                JOptionPane.INFORMATION_MESSAGE);
+
+        proceedToPaymentButton.setEnabled(true);
+
+        String transaction = "Customer: " + customerName +
+                ", Phone Number: " + phoneNumber +
+                ", Movie: " + movieComboBox.getSelectedItem() +
+                ", Theater: " + theaterComboBox.getSelectedItem() +
+                ", Date: " + dateComboBox.getSelectedItem() +
+                ", Show Time: " + timingComboBox.getSelectedItem() +
+                ", Seats: " + selectedSeatsText +
+                ", Tickets: " + numTickets +
+                ", Total Cost: $" + totalCost;
+        transactionHistory.add(transaction);
+    }
+
+    private void newBooking() {
+        selectedSeats.clear();
+        numTicketsField.setText("");
+
+        seatPanel.removeAll();
+        String selectedMovie = (String) movieComboBox.getSelectedItem();
+        String selectedTheater = (String) theaterComboBox.getSelectedItem();
+        String selectedDate = (String) dateComboBox.getSelectedItem();
+        String selectedTiming = (String) timingComboBox.getSelectedItem();
+
+        if (seatsLayouts.containsKey(selectedMovie)) {
+            Map<String, Map<String, Map<String, Seat[][]>>> theaterLayouts = seatsLayouts.get(selectedMovie);
+
+            if (theaterLayouts.containsKey(selectedTheater)) {
+                Map<String, Map<String, Seat[][]>> dateLayouts = theaterLayouts.get(selectedTheater);
+
+                if (dateLayouts.containsKey(selectedDate)) {
+                    Seat[][] seats = dateLayouts.get(selectedDate).get(selectedTiming);
+                    addSeatsToPanel(seats);
+                }
+            }
+        }
+
+        seatPanel.revalidate();
+        seatPanel.repaint();
+
+        proceedToPaymentButton.setEnabled(false);
+    }
+
+    private void addSeatsToPanel(Seat[][] seats) {
+        for (int row = 0; row < NUM_ROWS; row++) {
+            for (int col = 0; col < NUM_COLUMNS; col++) {
+                seatPanel.add(seats[row][col].getButton());
+            }
+        }
+    }
+
+    private void proceedToPayment() {
+        String movieName = (String) movieComboBox.getSelectedItem();
+        String theaterName = (String) theaterComboBox.getSelectedItem();
+        String showTime = (String) timingComboBox.getSelectedItem();
+        String date = (String) dateComboBox.getSelectedItem();
+        String selectedSeatsText = numTicketsField.getText();
+        int numTickets = selectedSeats.size();
+        int totalCost = 0;
+
+        for (Seat seat : selectedSeats) {
+            totalCost += seat.getCost();
+        }
+
+        JPanel paymentPanel = new JPanel();
+        paymentPanel.setLayout(new BoxLayout(paymentPanel, BoxLayout.Y_AXIS));
+        paymentPanel.add(new JLabel("Customer: " + customerName));
+        paymentPanel.add(new JLabel("Phone Number: " + phoneNumber));
+        paymentPanel.add(new JLabel("Movie: " + movieName));
+        paymentPanel.add(new JLabel("Theater: " + theaterName));
+        paymentPanel.add(new JLabel("Date: " + date));
+        paymentPanel.add(new JLabel("Show Time: " + showTime));
+        paymentPanel.add(new JLabel("Selected Seats: " + selectedSeatsText));
+        paymentPanel.add(new JLabel("Number of Tickets: " + numTickets));
+        paymentPanel.add(new JLabel("Total Cost: $" + totalCost));
+
+        JOptionPane.showMessageDialog(frame, paymentPanel, "Payment", JOptionPane.INFORMATION_MESSAGE);
+
+        selectedSeats.clear();
+        numTicketsField.setText("");
+        proceedToPaymentButton.setEnabled(false);
+    }
+
+    private void showTransactionHistory() {
+        JTextArea historyTextArea = new JTextArea();
+        historyTextArea.setEditable(false);
+
+        for (String transaction : transactionHistory) {
+            historyTextArea.append(transaction + "\n");
+        }
+
+        JScrollPane scrollPane = new JScrollPane(historyTextArea);
+
+        JOptionPane.showMessageDialog(frame, scrollPane, "Transaction History", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            new MovieTicketBookingSystemGUI();
+        });
+    }
+}
